@@ -102,6 +102,8 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
 //        imageView = (ImageView)findViewById(R.id.imageView);
 //        mGPUImageView.setGLSurfaceView((GLSurfaceView) findViewById(R.id.gpu_image));
         mGPUImageView = (GPUImageView) findViewById(R.id.gpu_image);
+        Uri path = Uri.parse("android.resource://com.puuga.greenuniversity/" + R.drawable.placeholder);
+        mGPUImageView.setImage(path);
         filter = new GPUImageRGBFilter(0.3f, 1.0f, 0.3f);
     }
 
@@ -173,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
         Log.d("app", "Saved: " + uri.toString());
         savedImageUri = uri;
 
-        Snackbar.make(rootLayout, "Ready to SHARE!", Snackbar.LENGTH_SHORT)
+        Snackbar.make(rootLayout, "Ready to SHARE!", Snackbar.LENGTH_LONG)
                 .setAction("Share", new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {

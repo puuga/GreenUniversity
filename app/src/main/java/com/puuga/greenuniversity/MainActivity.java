@@ -15,11 +15,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
+import com.crashlytics.android.Crashlytics;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import io.fabric.sdk.android.Fabric;
 import jp.co.cyberagent.android.gpuimage.GPUImageFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageRGBFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageView;
@@ -43,6 +46,7 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Fabric.with(this, new Crashlytics());
         setContentView(R.layout.activity_main);
 
         initToolbar();

@@ -16,6 +16,8 @@ import android.view.MenuItem;
 import android.view.View;
 
 import com.crashlytics.android.Crashlytics;
+import com.google.android.gms.analytics.GoogleAnalytics;
+import com.google.android.gms.analytics.Tracker;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,6 +30,9 @@ import jp.co.cyberagent.android.gpuimage.GPUImageRGBFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageView;
 
 public class MainActivity extends AppCompatActivity implements GPUImageView.OnPictureSavedListener {
+
+    public static GoogleAnalytics analytics;
+    public static Tracker tracker;
 
     FloatingActionButton fabBtn;
     Toolbar toolbar;
@@ -49,8 +54,18 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
         Fabric.with(this, new Crashlytics());
         setContentView(R.layout.activity_main);
 
+        initGoogleAnalytics();
         initToolbar();
         initInstances();
+    }
+
+    private void initGoogleAnalytics() {
+        analytics = GoogleAnalytics.getInstance(this);
+        analytics.setLocalDispatchPeriod(1800);
+
+        tracker = analytics.newTracker("UA-40963799-6");
+        tracker.enableExceptionReporting(true);
+        tracker.enableAutoActivityTracking(true);
     }
 
     private void initInstances() {

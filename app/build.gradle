@@ -18,13 +18,12 @@ repositories {
 android {
     compileSdkVersion 22
     buildToolsVersion "23.0.0 rc2"
-
     defaultConfig {
         applicationId "com.puuga.greenuniversity"
         minSdkVersion 18
         targetSdkVersion 22
-        versionCode 1
-        versionName "1.0"
+        versionCode 5
+        versionName '1.2'
     }
     buildTypes {
         release {
@@ -32,14 +31,17 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    productFlavors {
+    }
 }
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:appcompat-v7:22.2.0'
-    compile 'com.android.support:design:22.2.0'
-    compile 'jp.co.cyberagent.android.gpuimage:gpuimage-library:1.2.3'
     compile('com.crashlytics.sdk.android:crashlytics:2.4.0@aar') {
         transitive = true;
     }
+    compile 'com.android.support:appcompat-v7:22.2.0'
+    compile 'com.android.support:design:22.2.0'
+    compile 'jp.co.cyberagent.android.gpuimage:gpuimage-library:1.2.3'
+    compile 'com.google.android.gms:play-services-analytics:7.3.0'
 }

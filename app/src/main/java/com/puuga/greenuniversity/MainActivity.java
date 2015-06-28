@@ -17,6 +17,7 @@ import android.view.View;
 
 import com.crashlytics.android.Crashlytics;
 import com.google.android.gms.analytics.GoogleAnalytics;
+import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
 
 import java.io.File;
@@ -66,6 +67,8 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
         tracker = analytics.newTracker("UA-40963799-6");
         tracker.enableExceptionReporting(true);
         tracker.enableAutoActivityTracking(true);
+
+        tracker.setScreenName("main screen");
     }
 
     private void initInstances() {
@@ -189,6 +192,12 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
         shareIntent.setType("image/jpeg");
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         startActivity(Intent.createChooser(shareIntent, "send"));
+
+        tracker.send(new HitBuilders.EventBuilder()
+                .setCategory("activity")
+                .setAction("share")
+                .setLabel("share")
+                .build());
     }
 
     @Override
@@ -197,6 +206,13 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
         Log.d("app", "resultCode: " + resultCode);
         if (requestCode == REQUEST_TAKE_PHOTO && resultCode == RESULT_OK) {
             Log.d("app", "result: image uri: " + String.valueOf(Uri.fromFile(photoFile)));
+
+            tracker.send(new HitBuilders.EventBuilder()
+                    .setCategory("activity")
+                    .setAction("capture")
+                    .setLabel("capture")
+                    .build());
+
             galleryAddPic();
             setPic();
         }

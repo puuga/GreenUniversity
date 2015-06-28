@@ -1,6 +1,9 @@
 package com.puuga.greenuniversity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -16,6 +19,8 @@ import android.view.MenuItem;
 import android.view.View;
 
 import com.crashlytics.android.Crashlytics;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
 import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
@@ -74,6 +79,14 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
     private void initInstances() {
         rootLayout = (CoordinatorLayout) findViewById(R.id.rootLayout);
 
+        AdView mAdView = (AdView) findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder()
+                .setLocation(getLastKnownLocation())
+                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+                .addTestDevice("3EC1EF88FD766483AA48DEDC3AAC8A18")
+                .build();
+        mAdView.loadAd(adRequest);
+
         fabBtn = (FloatingActionButton) findViewById(R.id.fabBtn);
         fabBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -105,6 +118,14 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
         Uri path = Uri.parse("android.resource://com.puuga.greenuniversity/" + R.drawable.placeholder);
         mGPUImageView.setImage(path);
         filter = new GPUImageRGBFilter(0.3f, 1.0f, 0.3f);
+    }
+
+    private Location getLastKnownLocation() {
+        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        String locationProvider = LocationManager.NETWORK_PROVIDER;
+        Location loc = locationManager.getLastKnownLocation(locationProvider);
+        Log.d("location", loc.toString());
+        return loc;
     }
 
     private void initToolbar() {
@@ -237,10 +258,10 @@ public class MainActivity extends AppCompatActivity implements GPUImageView.OnPi
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_share) {
-            if ( savedImageUri!=null ) {
+            if (savedImageUri != null) {
                 sharePicture("GreenUniversity", "#GreenUniversity", savedImageUri);
             } else {
-                Snackbar.make(rootLayout, "Must Capture a photo first!", Snackbar.LENGTH_SHORT)
+                Snackbar.make(rootLayout, "Must Capture a photo first!", Snackbar.LENGTH_LONG)
                         .show();
             }
             return true;

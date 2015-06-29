@@ -2,9 +2,12 @@ package com.puuga.greenuniversity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -28,7 +31,9 @@ import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -65,6 +70,15 @@ public class MainActivity extends AppCompatActivity implements
         initGoogleAnalytics();
         initToolbar();
         initInstances();
+
+        logDevice();
+    }
+
+    private void logDevice() {
+        String manufacturer = Build.MANUFACTURER;
+        String model = Build.MODEL;
+        Log.d("app","manufacturer: "+manufacturer);
+        Log.d("app","model: "+model);
     }
 
     private void initAdMob() {
@@ -95,7 +109,8 @@ public class MainActivity extends AppCompatActivity implements
         fabBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                Intent takePictureIntent = new Intent("android.media.action.IMAGE_CAPTURE");
+//                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
                     // Create the File where the photo should go
                     photoFile = null;
@@ -159,21 +174,51 @@ public class MainActivity extends AppCompatActivity implements
         return File.createTempFile(imageFileName, ".jpg", storageDir);
     }
 
-    private void galleryAddPic() {
+    private void galleryAddPic(Uri contentUri) {
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        Uri contentUri = Uri.fromFile(photoFile);
         mediaScanIntent.setData(contentUri);
         this.sendBroadcast(mediaScanIntent);
     }
 
     private void setPic() {
-        mGPUImageView.setImage(Uri.fromFile(photoFile));
-        mGPUImageView.setFilter(filter);
+        try {
+            Bitmap mBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), savedOriginalImageUri);
+            if (mBitmap.getWidth() > mBitmap.getHeight()) {
+                Log.d("app","wrong rotation");
+                Matrix matrix = new Matrix();
+                matrix.postRotate(90);
+                Bitmap mBitmapNew = Bitmap.createBitmap(mBitmap , 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
+//                Log.d("app", "old w:"+mBitmap.getWidth()+", h:"+mBitmap.getHeight());
+//                Log.d("app", "new w:"+mBitmapNew.getWidth()+", h:"+mBitmapNew.getHeight());
 
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_green.jpg";
-        mGPUImageView.saveToPictures("GreenUniversity", imageFileName, this);
+                OutputStream fOut = null;
+                File file = createImageFile();
+                fOut = new FileOutputStream(file);
+                mBitmapNew.compress(Bitmap.CompressFormat.JPEG, 100, fOut);
+                fOut.flush();
+                fOut.close();
 
+                galleryAddPic(Uri.fromFile(file));
+                mGPUImageView.setImage(Uri.fromFile(file));
+
+                tracker.send(new HitBuilders.EventBuilder()
+                        .setCategory("logic")
+                        .setAction("wrong rotation")
+                        .setLabel("MANUFACTURER:"+Build.MANUFACTURER+", MODEL:"+Build.MODEL)
+                        .build());
+            } else {
+                mGPUImageView.setImage(savedOriginalImageUri);
+            }
+
+
+            mGPUImageView.setFilter(filter);
+
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            String imageFileName = "JPEG_" + timeStamp + "_green.jpg";
+            mGPUImageView.saveToPictures("GreenUniversity", imageFileName, this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -233,7 +278,7 @@ public class MainActivity extends AppCompatActivity implements
                     .setLabel("capture")
                     .build());
 
-            galleryAddPic();
+            galleryAddPic(savedOriginalImageUri);
             setPic();
         }
     }

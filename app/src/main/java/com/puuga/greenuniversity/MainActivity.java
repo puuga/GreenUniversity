@@ -33,7 +33,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import io.fabric.sdk.android.Fabric;
-import jp.co.cyberagent.android.gpuimage.GPUImage;
 import jp.co.cyberagent.android.gpuimage.GPUImageFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageRGBFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageView;
@@ -126,14 +125,13 @@ public class MainActivity extends AppCompatActivity implements
         Uri path = Uri.parse(
                 "android.resource://com.puuga.greenuniversity/" + R.drawable.placeholder);
         mGPUImageView.setImage(path);
-        mGPUImageView.setScaleType(GPUImage.ScaleType.CENTER_INSIDE);
 
         filter = new GPUImageRGBFilter(0.2f, 1f, 0.2f);
 
 //        GPUImageTwoInputFilter filter2 = new GPUImageAddBlendFilter();
 //        filter2.setBitmap(BitmapFactory.decodeResource(mGPUImageView.getResources(), R.drawable.filter));
 //        filter = filter2;
-        mGPUImageView.setFilter(filter);
+//        mGPUImageView.setFilter(filter);
     }
 
     private Location getLastKnownLocation() {
@@ -170,14 +168,13 @@ public class MainActivity extends AppCompatActivity implements
 
     private void setPic() {
         mGPUImageView.setImage(Uri.fromFile(photoFile));
-        mGPUImageView.setScaleType(GPUImage.ScaleType.CENTER_INSIDE);
         mGPUImageView.setFilter(filter);
 
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_green.jpg";
         mGPUImageView.saveToPictures("GreenUniversity", imageFileName, this);
 
-        setShareActionProvider();
+
     }
 
     private void setShareActionProvider() {
@@ -189,6 +186,8 @@ public class MainActivity extends AppCompatActivity implements
     public void onPictureSaved(final Uri uri) {
         Log.d("app", "Saved: " + uri.toString());
         savedGreenImageUri = uri;
+
+        setShareActionProvider();
 
         Snackbar.make(rootLayout, "Ready to SHARE!", Snackbar.LENGTH_LONG)
                 .setAction("Share", new View.OnClickListener() {

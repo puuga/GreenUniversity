@@ -2,6 +2,7 @@ package com.puuga.greenuniversity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.location.Location;
@@ -29,6 +30,9 @@ import com.google.android.gms.ads.AdView;
 import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -43,11 +47,13 @@ import jp.co.cyberagent.android.gpuimage.GPUImageRGBFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageView;
 
 public class MainActivity extends AppCompatActivity implements
-        GPUImageView.OnPictureSavedListener {
+        GPUImageView.OnPictureSavedListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     static final int REQUEST_TAKE_PHOTO = 1;
     public static GoogleAnalytics analytics;
     public static Tracker tracker;
+    GoogleApiClient mGoogleApiClient;
+    AdRequest adRequest;
     FloatingActionButton fabBtn;
     Toolbar toolbar;
     CoordinatorLayout rootLayout;
@@ -66,12 +72,21 @@ public class MainActivity extends AppCompatActivity implements
         Fabric.with(this, new Crashlytics());
         setContentView(R.layout.activity_main);
 
-        initAdMob();
+        buildGoogleApiClient();
+
         initGoogleAnalytics();
         initToolbar();
         initInstances();
 
         logDevice();
+    }
+
+    protected synchronized void buildGoogleApiClient() {
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
     }
 
     private void logDevice() {
@@ -83,11 +98,23 @@ public class MainActivity extends AppCompatActivity implements
 
     private void initAdMob() {
         AdView mAdView = (AdView) findViewById(R.id.adView);
-        AdRequest adRequest = new AdRequest.Builder()
-                .setLocation(getLastKnownLocation())
-                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                .addTestDevice("3EC1EF88FD766483AA48DEDC3AAC8A18")
-                .build();
+
+        if (adRequest != null) {
+            return;
+        }
+        Location lastLocation = getLastKnownLocation();
+        if (lastLocation == null) {
+            adRequest = new AdRequest.Builder()
+                    .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+                    .addTestDevice("3EC1EF88FD766483AA48DEDC3AAC8A18")
+                    .build();
+        } else {
+            adRequest = new AdRequest.Builder()
+                    .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+                    .addTestDevice("3EC1EF88FD766483AA48DEDC3AAC8A18")
+                    .setLocation(lastLocation)
+                    .build();
+        }
         mAdView.loadAd(adRequest);
     }
 
@@ -141,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements
                 "android.resource://com.puuga.greenuniversity/" + R.drawable.placeholder);
         mGPUImageView.setImage(path);
 
-        filter = new GPUImageRGBFilter(0.2f, 1f, 0.2f);
+        filter = new GPUImageRGBFilter(0.2f, 0.9f, 0.2f);
 
 //        GPUImageTwoInputFilter filter2 = new GPUImageAddBlendFilter();
 //        filter2.setBitmap(BitmapFactory.decodeResource(mGPUImageView.getResources(), R.drawable.filter));
@@ -150,12 +177,30 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private Location getLastKnownLocation() {
-        LocationManager locationManager = (LocationManager)
-                this.getSystemService(Context.LOCATION_SERVICE);
-        String locationProvider = LocationManager.NETWORK_PROVIDER;
-        Location loc = locationManager.getLastKnownLocation(locationProvider);
-        Log.d("location", loc.toString());
-        return loc;
+        Location mLastLocation = null;
+
+        try {
+            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if ( mLastLocation == null ) {
+            LocationManager locationManager = (LocationManager)
+                    this.getSystemService(Context.LOCATION_SERVICE);
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            if ( locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ) {
+                mLastLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            } else if ( locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ) {
+                mLastLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            }
+        }
+        if (mLastLocation != null) {
+            Log.d("location", mLastLocation.toString());
+            Log.d("location provider", mLastLocation.getProvider());
+        }
+
+        return mLastLocation;
     }
 
     private void initToolbar() {
@@ -181,25 +226,15 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void setPic() {
+        // check photo rotation *problem from camera app
         try {
             Bitmap mBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), savedOriginalImageUri);
             if (mBitmap.getWidth() > mBitmap.getHeight()) {
+                // make new photo if wrong rotation
                 Log.d("app","wrong rotation");
-                Matrix matrix = new Matrix();
-                matrix.postRotate(90);
-                Bitmap mBitmapNew = Bitmap.createBitmap(mBitmap , 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
-//                Log.d("app", "old w:"+mBitmap.getWidth()+", h:"+mBitmap.getHeight());
-//                Log.d("app", "new w:"+mBitmapNew.getWidth()+", h:"+mBitmapNew.getHeight());
-
-                OutputStream fOut = null;
-                File file = createImageFile();
-                fOut = new FileOutputStream(file);
-                mBitmapNew.compress(Bitmap.CompressFormat.JPEG, 100, fOut);
-                fOut.flush();
-                fOut.close();
-
-                galleryAddPic(Uri.fromFile(file));
-                mGPUImageView.setImage(Uri.fromFile(file));
+                File rotatedPhotoFile = rotatePhoto(mBitmap);
+                galleryAddPic(Uri.fromFile(rotatedPhotoFile));
+                mGPUImageView.setImage(Uri.fromFile(rotatedPhotoFile));
 
                 tracker.send(new HitBuilders.EventBuilder()
                         .setCategory("logic")
@@ -210,21 +245,33 @@ public class MainActivity extends AppCompatActivity implements
                 mGPUImageView.setImage(savedOriginalImageUri);
             }
 
-
             mGPUImageView.setFilter(filter);
 
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
             String imageFileName = "JPEG_" + timeStamp + "_green.jpg";
             mGPUImageView.saveToPictures("GreenUniversity", imageFileName, this);
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
     }
 
-    private void setShareActionProvider() {
+    private File rotatePhoto(Bitmap mBitmap) throws IOException {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(90);
+        Bitmap mBitmapNew = Bitmap.createBitmap(mBitmap , 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
+        File file = createImageFile();
+        OutputStream fOut = new FileOutputStream(file);
+        mBitmapNew.compress(Bitmap.CompressFormat.JPEG, 100, fOut);
+        fOut.flush();
+        fOut.close();
+
+        return file;
+    }
+
+    private void setShareActionProvider(Uri uri) {
         mShareActionProvider.setShareIntent(
-                getShareIntent("GreenUniversity", "#GreenUniversity", savedGreenImageUri));
+                getShareIntent("GreenUniversity", "#GreenUniversity", uri));
     }
 
     @Override
@@ -232,7 +279,7 @@ public class MainActivity extends AppCompatActivity implements
         Log.d("app", "Saved: " + uri.toString());
         savedGreenImageUri = uri;
 
-        setShareActionProvider();
+        setShareActionProvider(uri);
 
         Snackbar.make(rootLayout, "Ready to SHARE!", Snackbar.LENGTH_LONG)
                 .setAction("Share", new View.OnClickListener() {
@@ -280,6 +327,17 @@ public class MainActivity extends AppCompatActivity implements
 
             galleryAddPic(savedOriginalImageUri);
             setPic();
+        }
+
+        if (requestCode == REQUEST_RESOLVE_ERROR) {
+            mResolvingError = false;
+            if (resultCode == RESULT_OK) {
+                // Make sure the app is not already connected or attempting to connect
+                if (!mGoogleApiClient.isConnecting() &&
+                        !mGoogleApiClient.isConnected()) {
+                    mGoogleApiClient.connect();
+                }
+            }
         }
     }
 
@@ -337,5 +395,57 @@ public class MainActivity extends AppCompatActivity implements
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    // Request code to use when launching the resolution activity
+    private static final int REQUEST_RESOLVE_ERROR = 1001;
+    // Unique tag for the error dialog fragment
+    private static final String DIALOG_ERROR = "dialog_error";
+    // Bool to track whether the app is already resolving an error
+    private boolean mResolvingError = false;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!mResolvingError) {  // more about this later
+            mGoogleApiClient.connect();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        mGoogleApiClient.disconnect();
+        super.onStop();
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        initAdMob();
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        initAdMob();
+        if (mResolvingError) {
+            // Already attempting to resolve an error.
+            return;
+        } else if (connectionResult.hasResolution()) {
+            try {
+                mResolvingError = true;
+                connectionResult.startResolutionForResult(this, REQUEST_RESOLVE_ERROR);
+            } catch (IntentSender.SendIntentException e) {
+                // There was an error with the resolution intent. Try again.
+                mGoogleApiClient.connect();
+            }
+        } else {
+            // Show dialog using GooglePlayServicesUtil.getErrorDialog()
+//            showErrorDialog(result.getErrorCode());
+            mResolvingError = true;
+        }
     }
 }

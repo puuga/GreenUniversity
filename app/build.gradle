@@ -20,10 +20,10 @@ android {
     buildToolsVersion "23.0.0 rc2"
     defaultConfig {
         applicationId "com.puuga.greenuniversity"
-        minSdkVersion 18
+        minSdkVersion 15
         targetSdkVersion 22
-        versionCode 12
-        versionName '1.4.2'
+        versionCode 14
+        versionName '1.4.4'
     }
     buildTypes {
         release {
@@ -45,4 +45,5 @@ dependencies {
     compile 'jp.co.cyberagent.android.gpuimage:gpuimage-library:1.2.3'
     compile 'com.google.android.gms:play-services-analytics:7.5.0'
     compile 'com.google.android.gms:play-services-ads:7.5.0'
+    compile 'com.google.android.gms:play-services-location:7.5.0'
 }
